@@ -5,16 +5,7 @@ import { Button } from 'primereact/button';
 import { InputNumber } from 'primereact/inputnumber';
 import { OverlayPanel } from 'primereact/overlaypanel';
 import Pagination from './Paginator';
-
-interface Artwork {
-  id: number;
-  title?: string;
-  place_of_origin?: string;
-  artist_display?: string;
-  inscriptions?: string;
-  date_start?: number;
-  date_end?: number;
-}
+import type { Artwork } from '../types/artwork';
 
 interface DataTableProps {
   artworks: Artwork[];
@@ -46,22 +37,20 @@ const DataTable: React.FC<DataTableProps> = ({
     return row[field] ?? fallback;
   };
 
-const titleHeaderTemplate = (
-
-    
-  <div className="flex align-items-left">
-    <span 
-      className="text-gray-500 cursor-pointer  hover:bg-gray-100 rounded transition-colors"
-      onClick={(e) => {
-        e.stopPropagation();
-        op.current?.toggle(e);
-      }}
-      title="Select records across pages"
-    >
-      <i className="pi pi-chevron-down" />
-    </span>
-  </div>
-);
+  const titleHeaderTemplate = (
+    <div className="flex align-items-center">
+      <span 
+        className="text-gray-500 cursor-pointer hover:bg-gray-100 rounded transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          op.current?.toggle(e);
+        }}
+        title="Select records across pages"
+      >
+        <i className="pi pi-chevron-down" />
+      </span>
+    </div>
+  );
 
   return (
     <div className="card">
@@ -76,7 +65,7 @@ const titleHeaderTemplate = (
         responsiveLayout="scroll"
         emptyMessage="No artworks found."
       >
-        <Column selectionMode="multiple"headerStyle={{ width: '3.5rem' }} frozen />
+        <Column selectionMode="multiple" headerStyle={{ width: '3.5rem' }} frozen />
         <Column header={titleHeaderTemplate}/>
         <Column field="title" header="Title" body={(row) => getColumnValue(row, 'title', 'Untitled')} style={{ minWidth: '200px' }} />
         <Column field="place_of_origin" header="Origin" body={(row) => getColumnValue(row, 'place_of_origin')} style={{ minWidth: '150px' }} />
@@ -102,9 +91,6 @@ const titleHeaderTemplate = (
               if (rowCount && rowCount > 0) {
                 if (onSelectAcrossPages) {
                   onSelectAcrossPages(rowCount);
-                } else {
-                  const selected = artworks.slice(0, rowCount);
-                  onSelectionChange(selected);
                 }
                 op.current?.hide();
               }
