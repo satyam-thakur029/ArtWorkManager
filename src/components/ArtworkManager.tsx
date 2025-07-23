@@ -1,33 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Toast } from 'primereact/toast';
-import DataTable from './datatable';
+import DataTable from './datatable'; 
 import Loading from './Loding';
-
-interface Artwork {
-  id: number;
-  title: string;
-  place_of_origin: string;
-  artist_display: string;
-  inscriptions: string;
-  date_start: number;
-  date_end: number;
-}
-
-interface ApiResponse {
-  data: Artwork[];
-  pagination: {
-    total: number;
-    limit: number;
-    offset: number;
-    total_pages: number;
-    current_page: number;
-  };
-}
+import type { Artwork, ApiResponse } from '../types/artwork';
 
 const API_URL = 'https://api.artic.edu/api/v1/artworks';
 const PAGE_SIZE = 12;
 
-const   ArtworkManager = () => {
+const ArtworkManager = () => {
   const [artworks, setArtworks] = useState<Artwork[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -47,7 +27,7 @@ const   ArtworkManager = () => {
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       
       const data: ApiResponse = await response.json();
-      const validArtworks = data.data.filter(artwork => artwork.id && artwork.title);
+      const validArtworks = data.data.filter(artwork => artwork.id);
       
       setArtworks(validArtworks);
       setTotalRecords(data.pagination.total);
@@ -71,55 +51,64 @@ const   ArtworkManager = () => {
   }, [globalSelectedIds]);
 
   const handleSelectAcrossPages = useCallback(async (count: number) => {
-    setIsSelecting(true);
-    try {
-      const newSelectedIds = new Set<number>();
-      let remaining = count;
-      let page = currentPage;
-      
-      const takeFromCurrentPage = Math.min(remaining, artworks.length);
-      artworks.slice(0, takeFromCurrentPage).forEach(artwork => {
+  setIsSelecting(true);
+  try {
+    const newSelectedIds = new Set<number>();
+    let remaining = count;
+    let page = currentPage;
+    
+    // Take from current page
+    const takeFromCurrentPage = Math.min(remaining, artworks.length);
+    artworks.slice(0, takeFromCurrentPage).forEach(artwork => {
+      if (artwork.id) {  // Additional type safety
         newSelectedIds.add(artwork.id);
-      });
-      remaining -= takeFromCurrentPage;
-      
-      while (remaining > 0) {
-        page++;
-        const response = await fetch(
-          `${API_URL}?page=${page}&limit=${PAGE_SIZE}&fields=id,title`
-        );
-        const data: ApiResponse = await response.json();
-        const validArtworks = data.data.filter(artwork => artwork.id && artwork.title);
-        
-        const take = Math.min(remaining, validArtworks.length);
-        validArtworks.slice(0, take).forEach(artwork => {
-          newSelectedIds.add(artwork.id);
-        });
-        
-        remaining -= take;
       }
+    });
+    remaining -= takeFromCurrentPage;
+    
+    // Fetch additional pages if needed
+    while (remaining > 0) {
+      page++;
+      const response = await fetch(
+        `${API_URL}?page=${page}&limit=${PAGE_SIZE}&fields=id,title`
+      );
       
-      setGlobalSelectedIds(newSelectedIds);
-      await fetchArtworks(currentPage);
+      if (!response.ok) throw new Error('Failed to fetch additional pages');
       
-      toast.current?.show({
-        severity: 'success',
-        summary: 'Success',
-        detail: `Selected ${count} artworks across pages`,
-        life: 3000
+      const data: ApiResponse = await response.json();
+      const validArtworks = data.data.filter(artwork => artwork.id);
+      
+      const take = Math.min(remaining, validArtworks.length);
+      validArtworks.slice(0, take).forEach(artwork => {
+        if (artwork.id) {  // Additional type safety
+          newSelectedIds.add(artwork.id);
+        }
       });
-    } catch (error) {
-      console.error('Failed to select across pages:', error);
-      toast.current?.show({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'Failed to select artworks across pages',
-        life: 3000
-      });
-    } finally {
-      setIsSelecting(false);
+      
+      remaining -= take;
     }
-  }, [artworks, currentPage, fetchArtworks]);
+    
+    setGlobalSelectedIds(newSelectedIds);
+    await fetchArtworks(currentPage);
+    
+    toast.current?.show({
+      severity: 'success',
+      summary: 'Success',
+      detail: `Selected ${count} artworks across pages`,
+      life: 3000
+    });
+  } catch (error) {
+    console.error('Failed to select across pages:', error);
+    toast.current?.show({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to select artworks across pages',
+      life: 3000
+    });
+  } finally {
+    setIsSelecting(false);
+  }
+}, [artworks, currentPage, fetchArtworks]);
 
   useEffect(() => {
     fetchArtworks(currentPage);
@@ -153,11 +142,8 @@ const   ArtworkManager = () => {
           onSelectAcrossPages={handleSelectAcrossPages}
         />
       )}
-
-
-       
     </div>
   );
 };
 
-export default ArtworkManager;  
+export default ArtworkManager;
